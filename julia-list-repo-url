@@ -1,0 +1,26 @@
+#!/usr/bin/bash
+
+export LC_ALL=C
+usage() {
+ echo >&2 "Usage $0 [-h|--help] [-v]"
+ echo >&2 "      -v  : show also source file/line"
+}
+
+VERBOSE=false
+for i in 1 2 3 4; do
+  test x"$1" = x"-h" && usage && exit
+  test x"$1" = x"--help" && usage && exit
+  test x"$1" = x"-v" && shift && VERBOSE=true
+done
+
+if $VERBOSE ; then
+ag repo-url $(julia-listp -q -m -pa)
+else
+cat $(julia-listp -q -m -pa) |
+ag --nonumbers --nofilename repo-url |
+ sed '/^$/'d |
+ sed 's/repo-url.* = //' |
+ sed 's/"//g' |
+ sort |
+ uniq
+fi
