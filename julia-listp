@@ -1,0 +1,95 @@
+#!/usr/bin/bash
+
+export LC_ALL=C
+usage() {
+ echo >&2 "Usage $0 [-h|--help] [-q] [-p|-m|-ph|-pa|-r|-pk]"
+ echo >&2 "      -p  : show Projects.toml (default)"
+ echo >&2 "      -m  : show Manifests.toml"
+ echo >&2 "      -r  : raw path ouput"
+ echo >&2 "      -ph : use \$HOME instead of ~"
+ echo >&2 "      -pa : abs paths : subsistute value of \$HOME to ~"
+ echo >&2 "      -pk : show paths inside .julia/packages"
+}
+
+QUIET=false
+TYP=proj
+RAW=false; UNRAW=true
+PATHHOME=false
+PATHABS=false
+PKG=false; UNPKG=true
+for i in 1 2 3 4 5 6 7 8 9; do
+  test x"$1" = x"-h" && usage && exit
+  test x"$1" = x"--help" && usage && exit
+  test x"$1" = x"-q" && shift && QUIET=true
+  test x"$1" = x"-p" && shift && TYP="proj"
+  test x"$1" = x"-m" && shift && TYP="manf"
+  test x"$1" = x"-ph" && shift && PATHHOME=true
+  test x"$1" = x"-pa" && shift && PATHABS=true
+  test x"$1" = x"-r" && shift && RAW=true && UNRAW=false
+  test x"$1" = x"-pk" && shift && PKG=true && UNPKG=false
+done
+
+
+MANFUSAGE=~/.julia/logs/manifest_usage.toml
+
+if $QUIET; then
+:
+else
+stat $MANFUSAGE | grep Modify >&2
+fi
+
+FTEMP=$(mktemp -t tmp.julia-listp.XXXXXX)
+FTMP2=$(mktemp -t tmp.julia-listp2.XXXXXX)
+trap "rm -f $FTEMP $FTMP2" 0 1 2 15
+
+cat $MANFUSAGE |
+ grep Manifest |
+ sed 's/\[\[//' |
+ sed 's/]]//' |
+ cat >$FTEMP
+
+if test $TYP = "proj" ; then
+  cat $FTEMP >$FTMP2
+  sed 's/Manifest/Project/' <$FTMP2 >$FTEMP
+fi
+
+if test -f /usr/bin/cygpath ; then
+  cat $FTEMP >$FTMP2
+  xargs -n1 <$FTMP2 cygpath -u >$FTEMP
+  if $UNRAW ; then
+  for D in .julia gits jl ; do
+    cat $FTEMP >$FTMP2
+    sed "s+/cygdrive/c/Users/$USER/$D+~/$D+" <$FTMP2 >$FTEMP
+  done
+  fi
+else
+  cat $FTEMP >$FTMP2
+  sed 's/"//g' <$FTMP2 >$FTEMP
+fi
+
+if $UNRAW ; then
+cat  $FTEMP >$FTMP2
+sed "s+/home/$USER/$D+~/$D+" <$FTMP2 >$FTEMP
+if $PATHHOME ; then
+  cat  $FTEMP >$FTMP2
+  sed 's+~+$HOME+' <$FTMP2 >$FTEMP
+fi
+if $PATHABS ; then
+  cat  $FTEMP >$FTMP2
+  sed 's+~+'$HOME'+' <$FTMP2 >$FTEMP
+fi
+fi
+
+NPKG=$(grep .julia/packages $FTEMP | wc -l)
+if test $NPKG>0 ; then
+if $PKG ; then
+  $QUIET || echo >&2 "warning : keeping $NPKG path(s) inside .julia/packages"
+else
+  $QUIET || echo >&2 "warning : plus $NPKG path(s) inside .julia/packages (unlisted)"
+  cat  $FTEMP >$FTMP2
+  sed '/.julia\/packages/d' <$FTMP2 >$FTEMP
+fi
+fi
+
+cat $FTEMP
+
