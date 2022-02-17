@@ -1,0 +1,107 @@
+#!/usr/bin/bash
+#
+# Julia launcher wrapper for using local JuliaSysimage.[dll|so] if its exists and is up to date
+#
+# J.D.A.David 2022-02-17
+#
+
+VERBOSE=false
+WARN=true
+JULIA=julia
+FORCE=false
+
+ext=$($JULIA -e 'print(Sys.iswindows() ? "dll" : "so")')
+SYSIMG=JuliaSysimage.$ext
+BN=$(basename $0)
+usage(){
+	echo >&2 "$BN : [+h|+v|+q|+f|+J juliax] file.jl args "
+	echo >&2 "launch Julia with sysimage \"$SYSIMG\" if found"
+	echo >&2 "   +h : this help"
+	echo >&2 "   +v : verbose"
+	echo >&2 "   +q : quiet (no warning)"
+	echo >&2 "   +f : force use of sysimage even if out of date"
+	echo >&2 "   +J juliax : use juliax executable for julia"
+}
+
+if test x"$1" = x"+h";then usage; exit; fi
+for i in 1 2 3 4; do
+if test x"$1" = x"+v";then VERBOSE=true; shift; WARN=true; fi
+if test x"$1" = x"+q";then VERBOSE=false; shift; WARN=false; fi
+if test x"$1" = x"+f";then FORCE=true; shift;fi
+if test x"$1" = x"+J";then shift; JULIA=$1; shift;fi
+done
+
+
+
+FEX=false
+test -s $SYSIMG && FEX=true # && $VERBOSE && echo "julias : found sysimg $SYSIMG"
+
+HASPROJECT=false
+# echo " $@" | egrep ".* --project[ |=]"
+(echo " $@" | egrep ".* --project[ |=]" >/dev/null 2>/dev/null) && HASPROJECT=true
+# echo HASPROJECT=$HASPROJECT; exit
+
+getupmanifest(){
+	MANIFEST=Manifest.toml
+	if test -f $MANIFEST; then
+		: # OK
+	elif test -f ../$MANIFEST; then
+		MANIFEST=../$MANIFEST
+	elif test -f ../../$MANIFEST; then
+		MANIFEST=../../$MANIFEST
+	else
+		echo "$BN (getupmanifest) : ERROR : HomeProject more than 3 levels up not yet implemented"
+		: # find homeproject
+		exit 1
+	fi
+	echo $MANIFEST
+}
+MANIFEST=Manifest.toml
+if $HASPROJECT;then
+	HASHOMEPROJECT=false
+	PROJECTHERE=false
+	echo "$@" | egrep ".*--project=*@\. " >/dev/null 2>/dev/null && HASHOMEPROJECT=true
+	echo "$@" | egrep ".*--project "      >/dev/null 2>/dev/null && HASHOMEPROJECT=true
+	echo "$@" | egrep ".*--project=\. "   >/dev/null 2>/dev/null && PROJECTHERE=true
+	# echo "Hasproject, home=$HASHOMEPROJECT, here=$PROJECTHERE"
+	if $HASHOMEPROJECT; then
+		MANIFEST=$(getupmanifest)
+	elif $PROJECTHERE; then
+		: # nothing to do !
+	else
+		# echo "Specific project handling not yet implemented for $@"
+		PJ=$(echo " $@" | sed 's/^.* --project=//' | sed 's/ .*$//')
+		MANIFEST=$(echo "$PJ" | sed 's/Project/Manifest/')
+		# echo "PJ=$PJ MANIFEST=$MANIFEST (for args $@)"
+		# exit 1
+	fi
+else
+	# echo "Not Hasproject"
+	MANIFEST=$HOME/.julia/environments/v1.7/Manifest.toml
+fi
+# echo "Found manifest at $MANIFEST"
+
+JOPT=""
+if $FEX; then
+  if test -f $MANIFEST; then
+	epochM=$(stat -c %Y $MANIFEST)
+	epochJ=$(stat -c %Y $SYSIMG)
+	if test $epochJ -ge $epochM; then
+		JOPT="-J $SYSIMG "
+		$VERBOSE && echo "julias : using sysimage $SYSIMG"
+	else
+		JOPT=""
+		$WARN && echo "julias : ignoring sysimage $SYSIMG older than $MANIFEST" && ls -lt $MANIFEST $SYSIMG
+	fi
+  else
+    if $FORCE; then
+		$WARN && echo "julias : No $MANIFEST found, using $SYSMIG without up-to-date check"
+		JOPT="-J $SYSIMG "
+		# $VERBOSE && echo "julias : using sysmage $SYSIMG"
+	else
+		JOPT=""
+		$WARN && echo "julias : ignoring sysimage $SYSIMG because no force(+f) and no $MANIFEST found"
+	fi
+  fi
+fi
+exec $JULIA $JOPT "$@"
