@@ -1,0 +1,141 @@
+#!/usr/bin/bash
+# Julia (simplified) Daemon launcher for linux (and Cygwin)
+# wraps excellent DaemonMode by @dmolima (see https://github.com/dmolina/DaemonMode.jl)
+# You must have "using DaemonMode in the project
+# J.D.A.David 2022-02-17
+#
+BN=$(basename $0)
+Usage(){
+  echo >&2 "$BN : launches Julia daemon server (if necessary),  and client, to eexcute julia file"
+  echo >&2 "Usage  : $BN [+h|-h] [+J julia_exe] [[+v] [+l] [+k]] [+s] [+J juliax] [julia_options] file.jl [args]"
+  echo >&2 "    +h : this help"
+  echo >&2 "    +v : verbose (vs launching steps)"
+  echo >&2 "    +l : list running server and exits"
+  echo >&2 "    +k : kill running server and exits"
+  echo >&2 "    +s : launch julia with startup file (default is without)"
+  echo >&2 "    +J juliax  : use \"juliax\" as julia executable"
+  echo >&2 ""
+  echo >&2 "Notes:"
+  echo >&2 "  - the principle is to lauch one daemon per directory (=project)"
+  echo >&2 "  - the script creates a local file '.juliad' which stores the status of a running daemon"
+  echo >&2 "  - as of current, statusd is (port used, julia_args(project, use_startup))"
+  echo >&2 ""
+}
+
+VERBOSE=false
+USESTARTUP=false
+JDL=false
+JDK=false
+JULIA=julia
+
+JARGS=""
+
+test x"$1" = x"+h" && Usage && exit 0;
+test x"$1" = x"-h" && Usage && julia -h && exit 0;
+test x"$1" = x"--help" && Usage && julia --help && exit 0;
+for IOP in 1 2 3 4 5; do
+ test x"$1" = x"+v" && VERBOSE=true && shift;
+ test x"$1" = x"+s" && USESTARTUP=true && shift;
+ test x"$1" = x"+l" && JDL=true && shift;
+ test x"$1" = x"+k" && JDK=true && shift;
+ test x"$1" = x"+J" && shift && JULIA="$1" && shift;
+done
+# echo "VERBOSE=$VERBOSE USESTARTUP=$USESTARTUP JDL=$JDL JDK=$JDK JULIA=$JULIA";exit
+
+STATUSFILE=.juliad
+ISRUNNING=false
+if test -f $STATUSFILE; then
+  PORTA=$(cat $STATUSFILE|head -n1)
+  JARGA=$(cat $STATUSFILE|sed 1d|head -n1)
+  ISRUNNING=true
+  PORT=$PORTA
+  $VERBOSE && echo "JuliaDaemon : found daemon running on port $PORTA, with arg $JARGA"
+else
+  # PORT=3000
+  PORT_BASE=3000; PORTINCREMENT=1; 
+  PORT=$PORT_BASE
+  isfree=$(netstat -a -t -n | grep LISTEN | grep :$PORT 2>/dev/null)
+  while [[ -n "$isfree" ]]; do
+    PORT=$[PORT+$PORTINCREMENT]
+    isfree=$(netstat -a -t -n | grep LISTEN | grep :$PORT 2>/dev/null)
+  done
+  $VERBOSE && echo "JuliaDaemon : no daemon running, usable port at $PORT"
+fi
+
+if $JDL; then
+  $ISRUNNING && echo >&2 "JuliaDaemon : running (port: $PORTA, args: $JARGA)"
+  $ISRUNNING || echo >&2 "JuliaDaemon : not running"
+  exit 0
+fi
+
+if $JDK; then
+  if $ISRUNNING; then
+    $VERBOSE && echo >&2 "JuliaDaemon : Killing running  (port : $PORT)"
+	$JULIA -e "using DaemonMode; sendExitCode($PORT)"
+    # kill -9 $PID
+    rm -f $STATUSFILE
+  else
+    $VERBOSE && echo >&2 "JuliaDaemon : nothing to kill"
+  fi
+  exit 0
+fi
+
+JARGS=""
+JLINE="$@"
+PJARG=""
+if $(echo " $JLINE" | grep " --project" >/dev/null 2>/dev/null); then
+  PJARG=$(echo $JLINE | sed 's/.*--project/--project/g' | sed 's/ .*$//')
+fi
+JARGS="$JARGS $PJARG "
+
+if $USESTARTUP; then
+  STUPARG=""
+else
+  STUPARG="--startup=no"
+fi
+JARGS="$JARGS $STUPARG"
+
+# cleanup olds statusfile
+# if test -f $STATUSFILE; then
+#   PORTA=$(cat $STATUSFILE|head -n1)
+#   JARGA=$(cat $STATUSFILE|sed 1d| head -n 1)
+if $ISRUNNING; then
+  # echo "dbg PORTA=$PORTA JARGA=$JARGA PORT=$PORT JARGS=$JARGS"
+  $VERBOSE && echo >&2 "JuliaDaemon : testing $PORT"
+  if $JULIA -e "using DaemonMode; runexpr(\"1-1\";port=$PORT)" |& grep Error ; then
+    $VERBOSE && echo >&2 "JuliaDaemon : test failed on  $PORT"
+	rm -f $STATUSFILE
+  else
+    $VERBOSE && echo >&2 "JuliaDaemon : test successfull  on  $PORT"
+	if test x"$JARGS" = x"$JARGA";then
+	  $VERBOSE && echo >&2 "JuliaDaemon : and OK/same project $JARG"
+	else
+	  echo >&2 "JuliaDaemon : killing previous daemon because project is different ($JARGA => $JARG)"
+	  $JULIA -e "using DaemonMode; sendExitCode($PORT)"
+      # kill -9 $PID
+      rm -f $STATUSFILE
+	  sleep 5
+	  ISRUNNING=false; PORTA=""; JARGSA=""
+	  # PORT=3000
+	  PORT_BASE=3000; PORTINCREMENT=1; 
+	  PORT=$PORT_BASE
+	  isfree=$(netstat -a -t -n | grep LISTEN | grep :$PORT 2>/dev/null)
+	  while [[ -n "$isfree" ]]; do
+		PORT=$[PORT+$PORTINCREMENT]
+		isfree=$(netstat -a -t -n | grep LISTEN | grep :$PORT 2>/dev/null)
+	  done
+	  $VERBOSE && echo "JuliaDaemon : killed running daemon, usable port at$PORT"
+    fi
+  fi
+fi
+
+if $ISRUNNING; then
+  $VERBOSE && echo >&2 "JuliaDaemon : running (port : $PORT)"
+else
+  $VERBOSE && echo -n >&2 "JuliaDaemon : starting"
+  $JULIA $JARGS -e "using DaemonMode; serve($PORT)" &
+  #PID=$$; echo $PID >$PIDFILE;   $VERBOSE && echo >&2 $PID
+  (echo "$PORT";echo "$JARGS")>$STATUSFILE; $VERBOSE && echo >&2 " (port $PORT args $JARGS)"
+  sleep 5
+fi
+$JULIA $JARGS -e "using DaemonMode; runargs($PORT)" "$@"
