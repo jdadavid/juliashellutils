@@ -1,9 +1,9 @@
 #!/usr/bin/bash
-# Julia (simplified) Daemon launcher for linux (and Cygwin)
+# juliad : launches Julia daemon server (if necessary),  and client, to excute julia file with reduced TTFX
 # wraps excellent DaemonMode by @dmolima (see https://github.com/dmolina/DaemonMode.jl)
-# You must have "using DaemonMode in the project
+# You must have added DaemonMode to the project in the directory used (or, default v1.x in .julia/environments/)
 # J.D.A.David 2022-02-17
-#
+
 BN=$(basename $0)
 Usage(){
   echo >&2 "$BN : launches Julia daemon server (if necessary),  and client, to eexcute julia file"
@@ -18,7 +18,8 @@ Usage(){
   echo >&2 "Notes:"
   echo >&2 "  - the principle is to lauch one daemon per directory (=project)"
   echo >&2 "  - the script creates a local file '.juliad' which stores the status of a running daemon"
-  echo >&2 "  - as of current, statusd is (port used, julia_args(project, use_startup))"
+  echo >&2 "  - as of current, status is (port used, julia_args(project, use_startup))"
+  echo >&2 "  - you must have added DaemonMode to the (current) project or the default  in .julia/environments/v1.x/"
   echo >&2 ""
 }
 
