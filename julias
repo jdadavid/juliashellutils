@@ -1,9 +1,6 @@
 #!/usr/bin/bash
-#
 # Julia launcher wrapper for using local JuliaSysimage.[dll|so] if its exists and is up to date
-#
 # J.D.A.David 2022-02-17
-#
 
 VERBOSE=false
 WARN=true
