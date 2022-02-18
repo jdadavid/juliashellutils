@@ -7,7 +7,7 @@ Usage : julias : [+h] [+v|+q] [+f] [+J juliax] [julia_options] file.jl [args]
 launch Julia with sysimage "JuliaSysimage.[dll|so]" if found
    +h : this help
    +v : verbose
-   +q : quiet (no warning about out of date)
+   +q : quiet (no warnings, e.g. about out of date or force)
    +f : force use of sysimage even if out of date
    +J juliax : use juliax executable for julia
 ```
