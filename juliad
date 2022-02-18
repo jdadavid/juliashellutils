@@ -1,12 +1,12 @@
 #!/usr/bin/bash
-# juliad : launches Julia daemon server (if necessary),  and client, to excute julia file with reduced TTFX
+# juliad : launches Julia daemon server (if necessary),  and client, to execute julia file with reduced TTFX
 # wraps excellent DaemonMode by @dmolima (see https://github.com/dmolina/DaemonMode.jl)
 # You must have added DaemonMode to the project in the directory used (or, default v1.x in .julia/environments/)
 # J.D.A.David 2022-02-17
 
 BN=$(basename $0)
 Usage(){
-  echo >&2 "$BN : launches Julia daemon server (if necessary),  and client, to eexcute julia file"
+  echo >&2 "$BN : launches Julia daemon server (if necessary),  and client, to execute julia file with reduced TTFX"
   echo >&2 "Usage  : $BN [+h|-h] [+J julia_exe] [[+v] [+l] [+k]] [+s] [+J juliax] [julia_options] file.jl [args]"
   echo >&2 "    +h : this help"
   echo >&2 "    +v : verbose (vs launching steps)"
