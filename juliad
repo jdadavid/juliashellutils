@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # juliad : launches Julia daemon server (if necessary),  and client, to execute julia file with reduced TTFX
-# wraps excellent DaemonMode by @dmolima (see https://github.com/dmolina/DaemonMode.jl)
+# wraps excellent DaemonMode by @dmolina (see https://github.com/dmolina/DaemonMode.jl)
 # You must have added DaemonMode to the project in the directory used (or, to default v1.x in .julia/environments/)
 # J.D.A.David 2022-02-17
 
