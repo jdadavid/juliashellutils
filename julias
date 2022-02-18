@@ -11,11 +11,11 @@ ext=$($JULIA -e 'print(Sys.iswindows() ? "dll" : "so")')
 SYSIMG=JuliaSysimage.$ext
 BN=$(basename $0)
 usage(){
-	echo >&2 "$BN : [+h|+v|+q|+f|+J juliax] file.jl args "
+	echo >&2 "$BN : [+h] [+v|+q] [+f] [+J juliax] [julia_options] file.jl [args]"
 	echo >&2 "launch Julia with sysimage \"$SYSIMG\" if found"
 	echo >&2 "   +h : this help"
 	echo >&2 "   +v : verbose"
-	echo >&2 "   +q : quiet (no warning)"
+	echo >&2 "   +q : quiet (no warnings, e.g. about out of date or force)"
 	echo >&2 "   +f : force use of sysimage even if out of date"
 	echo >&2 "   +J juliax : use juliax executable for julia"
 }
@@ -78,27 +78,27 @@ else
 fi
 # echo "Found manifest at $MANIFEST"
 
-JOPT=""
+JOPTSYSIMG=""
 if $FEX; then
   if test -f $MANIFEST; then
 	epochM=$(stat -c %Y $MANIFEST)
 	epochJ=$(stat -c %Y $SYSIMG)
 	if test $epochJ -ge $epochM; then
-		JOPT="-J $SYSIMG "
+		JOPTSYSIMG="-J $SYSIMG "
 		$VERBOSE && echo "julias : using sysimage $SYSIMG"
 	else
-		JOPT=""
+		JOPTSYSIMG=""
 		$WARN && echo "julias : ignoring sysimage $SYSIMG older than $MANIFEST" && ls -lt $MANIFEST $SYSIMG
 	fi
   else
     if $FORCE; then
 		$WARN && echo "julias : No $MANIFEST found, using $SYSMIG without up-to-date check"
-		JOPT="-J $SYSIMG "
+		JOPTSYSIMG="-J $SYSIMG "
 		# $VERBOSE && echo "julias : using sysmage $SYSIMG"
 	else
-		JOPT=""
+		JOPTSYSIMG=""
 		$WARN && echo "julias : ignoring sysimage $SYSIMG because no force(+f) and no $MANIFEST found"
 	fi
   fi
 fi
-exec $JULIA $JOPT "$@"
+exec $JULIA $JOPTSYSIMG "$@"
