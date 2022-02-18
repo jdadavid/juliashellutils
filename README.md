@@ -14,7 +14,7 @@ launch Julia with sysimage "JuliaSysimage.[dll|so]" if found
 
 ```
 juliad : launches Julia daemon server (if necessary),  and client, to execute julia file with reduced TTFX
-#  wraps excellent DaemonMode by @dmolima (see https://github.com/dmolina/DaemonMode.jl)
+#  wraps excellent DaemonMode by @dmolina (see https://github.com/dmolina/DaemonMode.jl)
 #  You must have added DaemonMode to the project that will be used (or the default v1.x env)
 Usage  : juliad [+h] [+v] [+l] [+k] [+s] [+J juliax] [julia_options] file.jl [args]
     +h : this help
